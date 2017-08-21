@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 )
@@ -15,6 +17,35 @@ type config struct {
 	Password   string `json:"password"`
 	Timeout    int    `json:"timeout"`
 	Method     string `json:"method"`
+}
+
+func readFile(filename string) (*config, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	conf := new(config)
+	err = json.Unmarshal(data, &conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return conf, nil
+}
+
+func (c *config) WriteFile(filename string) error {
+	data, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filename, data, 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *config) EncodeURI() string {

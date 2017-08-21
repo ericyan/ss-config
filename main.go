@@ -6,20 +6,26 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
 func main() {
-	filename := flag.String("c", "/etc/shadowsocks-libev/config.json", "path to config file")
-	server := flag.String("s", "0.0.0.0", "server hostname or address")
-	serverPort := flag.Int("p", 1234, "server port")
-	localPort := flag.Int("l", 1080, "client port")
-	password := flag.String("k", "", "pre-shared key")
-	method := flag.String("m", "rc4-md5", "encrypt method")
-	timeout := flag.Int("t", 60, "socket timeout in seconds")
-	flag.Parse()
+	flags := flag.NewFlagSet("ss-config", flag.ExitOnError)
+	filename := flags.String("c", "/etc/shadowsocks-libev/config.json", "path to config file")
+	server := flags.String("s", "0.0.0.0", "server hostname or address")
+	serverPort := flags.Int("p", 1234, "server port")
+	localPort := flags.Int("l", 1080, "client port")
+	password := flags.String("k", "", "pre-shared key")
+	method := flags.String("m", "rc4-md5", "encrypt method")
+	timeout := flags.Int("t", 60, "socket timeout in seconds")
+
+	if len(os.Args) < 2 {
+		fmt.Printf("Usage:\n\tss-config command [-flags] arguments\n")
+		os.Exit(2)
+	}
+
+	flags.Parse(os.Args[2:])
 
 	if *password == "" {
 		buf := make([]byte, 18)
@@ -34,7 +40,7 @@ func main() {
 	}
 
 	var uri string
-	for _, s := range flag.Args() {
+	for _, s := range flags.Args() {
 		if strings.HasPrefix(s, "ss://") {
 			uri = s
 		}
@@ -48,32 +54,46 @@ func main() {
 		Method:     *method,
 		Timeout:    *timeout,
 	}
-	if uri == "" {
-		data, err := ioutil.ReadFile(*filename)
+
+	switch os.Args[1] {
+	case "show":
+		conf, err := readFile(*filename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
 			os.Exit(1)
 		}
 
-		json.Unmarshal(data, &conf)
+		pp, err := json.MarshalIndent(conf, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
+			os.Exit(1)
+		}
+
+		os.Stdout.Write(pp)
+	case "uri":
+		conf, err := readFile(*filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
+			os.Exit(1)
+		}
+
 		fmt.Println(conf.EncodeURI())
-	} else {
-		err := conf.DecodeURI(uri)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
-			os.Exit(1)
+	case "new":
+		if uri != "" {
+			err := conf.DecodeURI(uri)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
+				os.Exit(1)
+			}
 		}
 
-		data, err := json.Marshal(conf)
+		err := conf.WriteFile(*filename)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
 			os.Exit(1)
 		}
-
-		err = ioutil.WriteFile(*filename, data, 0600)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
-			os.Exit(1)
-		}
+	default:
+		fmt.Printf("invalid command: %s\n", os.Args[1])
+		os.Exit(2)
 	}
 }
