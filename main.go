@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,7 +13,25 @@ import (
 
 func main() {
 	filename := flag.String("c", "/etc/shadowsocks-libev/config.json", "path to config file")
+	server := flag.String("s", "0.0.0.0", "server hostname or address")
+	serverPort := flag.Int("p", 1234, "server port")
+	localPort := flag.Int("l", 1080, "client port")
+	password := flag.String("k", "", "pre-shared key")
+	method := flag.String("m", "rc4-md5", "encrypt method")
+	timeout := flag.Int("t", 60, "socket timeout in seconds")
 	flag.Parse()
+
+	if *password == "" {
+		buf := make([]byte, 18)
+		_, err := rand.Read(buf)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ss-config: %s\n", err)
+			os.Exit(1)
+		}
+
+		psk := base64.RawURLEncoding.EncodeToString(buf)
+		password = &psk
+	}
 
 	var uri string
 	for _, s := range flag.Args() {
@@ -20,7 +40,14 @@ func main() {
 		}
 	}
 
-	conf := new(config)
+	conf := &config{
+		Server:     *server,
+		ServerPort: *serverPort,
+		LocalPort:  *localPort,
+		Password:   *password,
+		Method:     *method,
+		Timeout:    *timeout,
+	}
 	if uri == "" {
 		data, err := ioutil.ReadFile(*filename)
 		if err != nil {
