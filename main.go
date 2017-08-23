@@ -14,10 +14,10 @@ func main() {
 	flags := flag.NewFlagSet("ss-config", flag.ExitOnError)
 	filename := flags.String("c", "/etc/shadowsocks-libev/config.json", "path to config file")
 	server := flags.String("s", "0.0.0.0", "server hostname or address")
-	serverPort := flags.Int("p", 1234, "server port")
+	serverPort := flags.Int("p", 8388, "server port")
 	localPort := flags.Int("l", 1080, "client port")
 	password := flags.String("k", "", "pre-shared key")
-	method := flags.String("m", "rc4-md5", "encrypt method")
+	method := flags.String("m", "chacha20-ietf-poly1305", "encrypt method")
 	timeout := flags.Int("t", 60, "socket timeout in seconds")
 
 	if len(os.Args) < 2 {
