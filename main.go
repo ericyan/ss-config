@@ -70,6 +70,7 @@ func main() {
 		}
 
 		os.Stdout.Write(pp)
+		os.Stdout.WriteString("\n")
 	case "uri":
 		conf, err := readFile(*filename)
 		if err != nil {
